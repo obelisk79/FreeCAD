@@ -98,15 +98,8 @@ public:
 
     void registerPressedKey(bool pressed, int key) override
     {
-        if (Mode == STATUS_SEEK_Second && key == SoKeyboardEvent::M && pressed
+        if (Mode == STATUS_SEEK_Second && key == SoKeyboardEvent::TAB && pressed
             && previousCurve != -1) {
-            // loop through the following modes:
-            // SEGMENT_MODE_Line, TRANSITION_MODE_Free / TRANSITION_MODE_Tangent
-            // SEGMENT_MODE_Line, TRANSITION_MODE_Perpendicular_L
-            // SEGMENT_MODE_Line, TRANSITION_MODE_Tangent / TRANSITION_MODE_Free
-            // SEGMENT_MODE_Arc, TRANSITION_MODE_Tangent
-            // SEGMENT_MODE_Arc, TRANSITION_MODE_Perpendicular_L
-            // SEGMENT_MODE_Arc, TRANSITION_MODE_Perpendicular_R
 
             SnapMode = SNAP_MODE_Free;
 
@@ -121,56 +114,12 @@ public:
             const Part::Geometry* geom = sketchgui->getSketchObject()->getGeometry(previousCurve);
 
             if (SegmentMode == SEGMENT_MODE_Line) {
-                switch (TransitionMode) {
-                    case TRANSITION_MODE_Free:
-                        if (geom->is<Part::GeomArcOfCircle>()) {  // 3rd mode
-                            SegmentMode = SEGMENT_MODE_Arc;
-                            TransitionMode = TRANSITION_MODE_Tangent;
-                        }
-                        else {  // 1st mode
-                            TransitionMode = TRANSITION_MODE_Perpendicular_L;
-                        }
-                        break;
-                    case TRANSITION_MODE_Perpendicular_L:  // 2nd mode
-                        if (geom->is<Part::GeomArcOfCircle>()) {
-                            TransitionMode = TRANSITION_MODE_Free;
-                        }
-                        else {
-                            TransitionMode = TRANSITION_MODE_Tangent;
-                        }
-                        break;
-                    case TRANSITION_MODE_Tangent:
-                        if (geom->is<Part::GeomArcOfCircle>()) {  // 1st mode
-                            TransitionMode = TRANSITION_MODE_Perpendicular_L;
-                        }
-                        else {  // 3rd mode
-                            SegmentMode = SEGMENT_MODE_Arc;
-                            TransitionMode = TRANSITION_MODE_Tangent;
-                        }
-                        break;
-                    default:  // unexpected mode
-                        TransitionMode = TRANSITION_MODE_Free;
-                        break;
-                }
+                SegmentMode = SEGMENT_MODE_Arc;
+                TransitionMode = TRANSITION_MODE_Tangent;
             }
             else {
-                switch (TransitionMode) {
-                    case TRANSITION_MODE_Tangent:  // 4th mode
-                        TransitionMode = TRANSITION_MODE_Perpendicular_L;
-                        break;
-                    case TRANSITION_MODE_Perpendicular_L:  // 5th mode
-                        TransitionMode = TRANSITION_MODE_Perpendicular_R;
-                        break;
-                    default:  // 6th mode (Perpendicular_R) + unexpected mode
-                        SegmentMode = SEGMENT_MODE_Line;
-                        if (geom->is<Part::GeomArcOfCircle>()) {
-                            TransitionMode = TRANSITION_MODE_Tangent;
-                        }
-                        else {
-                            TransitionMode = TRANSITION_MODE_Free;
-                        }
-                        break;
-                }
+                SegmentMode = SEGMENT_MODE_Line;
+                TransitionMode = TRANSITION_MODE_Free;
             }
 
             if (SegmentMode == SEGMENT_MODE_Line) {
@@ -180,6 +129,38 @@ public:
                 EditCurve.resize(32);
             }
             mouseMove(onSketchPos);  // trigger an update of EditCurve
+        }
+        else if (SegmentMode == SEGMENT_MODE_Line && key == SoKeyboardEvent::LEFT_SHIFT && pressed) {
+            SnapMode = SNAP_MODE_Free;
+            Base::Vector2d onSketchPos;
+            onSketchPos = EditCurve[EditCurve.size() - 1];
+
+            if (TransitionMode == !TRANSITION_MODE_Tangent) {
+                TransitionMode = TRANSITION_MODE_Tangent;
+            }
+
+            if (SegmentMode == SEGMENT_MODE_Line) {
+                EditCurve.resize(TransitionMode == TRANSITION_MODE_Free ? 2 : 3);
+            }
+            else {
+                EditCurve.resize(32);
+            }
+            mouseMove(onSketchPos);
+        }
+        else if (SegmentMode == SEGMENT_MODE_Line && key == SoKeyboardEvent::LEFT_SHIFT && !pressed) {
+            SnapMode = SNAP_MODE_Free;
+            Base::Vector2d onSketchPos;
+            onSketchPos = EditCurve[EditCurve.size() - 1];
+
+            TransitionMode = TRANSITION_MODE_Free;
+
+            if (SegmentMode == SEGMENT_MODE_Line) {
+                EditCurve.resize(TransitionMode == TRANSITION_MODE_Free ? 2 : 3);
+            }
+            else {
+                EditCurve.resize(32);
+            }
+            mouseMove(onSketchPos);
         }
         else {
             DrawSketchHandler::registerPressedKey(pressed, key);
